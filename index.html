@@ -1,0 +1,236 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Wallet · a sovereign agent-wallet that cannot overspend</title>
+<meta name="description" content="An Ed25519 identity that IS a capability and a budget: it carries a signed action-ceiling it cannot cross, refuses forged or over-budget actions, and forks into a lineage tree. The token-leak, made impossible by construction.">
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#0b0d12">
+<style>
+  :root{
+    --bg:#0b0d12; --panel:#14171f; --panel2:#1b1f2a; --border:#262b38; --ink:#e9ecf2; --dim:#8891a3;
+    --gold:#e0b23a; --green:#5fd08a; --red:#e77b6b; --blue:#6fb0ff; --violet:#b79bff;
+    --serif:Georgia,'Times New Roman',serif; --sans:system-ui,-apple-system,'Segoe UI',sans-serif; --mono:ui-monospace,'SFMono-Regular',Menlo,monospace;
+  }
+  @media (prefers-color-scheme:light){ :root{ --bg:#f4f5f2; --panel:#fff; --panel2:#eef0ea; --border:#e0e2da; --ink:#181a20; --dim:#6c7280; } }
+  :root[data-theme=dark]{ --bg:#0b0d12; --panel:#14171f; --panel2:#1b1f2a; --border:#262b38; --ink:#e9ecf2; --dim:#8891a3; }
+  :root[data-theme=light]{ --bg:#f4f5f2; --panel:#fff; --panel2:#eef0ea; --border:#e0e2da; --ink:#181a20; --dim:#6c7280; }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font:15px/1.6 var(--sans);-webkit-font-smoothing:antialiased;min-height:100dvh;padding:26px 18px 60px}
+  .wrap{max-width:900px;margin:0 auto}
+  header{text-align:center;margin:6px 0 22px}
+  .glyph{font-size:34px;line-height:1}
+  h1{font-family:var(--serif);font-weight:700;font-size:clamp(29px,6vw,46px);letter-spacing:-.02em;margin:6px 0 4px}
+  h1 em{color:var(--gold);font-style:italic}
+  .sub{color:var(--dim);max-width:620px;margin:8px auto 0;font-size:15px}
+  .sub b{color:var(--ink)}
+  section{background:var(--panel);border:1px solid var(--border);border-radius:15px;padding:18px;margin-top:15px}
+  .eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:12px}
+  .banner{font-family:var(--mono);font-size:12px;padding:8px 12px;border-radius:9px;border:1px solid var(--border);color:var(--dim);margin-bottom:12px}
+  .banner.real{border-color:var(--green);color:var(--green)} .banner.demo{border-color:var(--gold);color:var(--gold)}
+  label{font-family:var(--mono);font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.08em}
+  .caps{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 12px}
+  .cap{font-family:var(--mono);font-size:12px;padding:6px 11px;border-radius:18px;border:1px solid var(--border);background:var(--panel2);color:var(--dim);cursor:pointer;user-select:none;transition:.12s}
+  .cap.on{border-color:var(--gold);color:var(--ink)}
+  .row{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:6px}
+  input[type=number]{width:120px;font-family:var(--mono);font-size:15px;padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:var(--panel2);color:var(--ink)}
+  input:focus{outline:none;border-color:var(--gold)}
+  button{font-family:var(--sans);font-weight:700;font-size:13px;padding:10px 15px;border-radius:9px;border:1px solid var(--border);background:var(--panel);color:var(--ink);cursor:pointer;transition:.14s}
+  button:hover{border-color:var(--gold);color:var(--gold)}
+  button.gold{background:var(--gold);color:#0b0d12;border-color:var(--gold)} button.gold:hover{background:#f0c250;color:#0b0d12}
+  button:disabled{opacity:.4;cursor:not-allowed}
+  .id{font-family:var(--mono);font-size:12px;color:var(--dim);word-break:break-all;margin-top:10px}
+  .id b{color:var(--gold)}
+  .bar{height:26px;border-radius:8px;background:var(--panel2);overflow:hidden;margin-top:10px;position:relative;border:1px solid var(--border)}
+  .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .25s}
+  .bar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:12px;color:var(--ink);mix-blend-mode:difference}
+  .log{font-family:var(--mono);font-size:12px;margin-top:12px;max-height:190px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+  .log div{padding:5px 9px;border-radius:7px;border:1px solid var(--border)}
+  .log .ok{color:var(--green);border-color:color-mix(in srgb,var(--green) 40%,transparent)}
+  .log .no{color:var(--red);border-color:color-mix(in srgb,var(--red) 40%,transparent)}
+  .tree{font-family:var(--mono);font-size:12.5px;line-height:1.9;margin-top:8px}
+  .tree .n{color:var(--ink)} .tree .c{color:var(--dim)} .tree .credit{color:var(--gold)}
+  footer{text-align:center;color:var(--dim);font-family:var(--mono);font-size:11px;margin-top:28px;line-height:1.8}
+  footer a{color:var(--gold);text-decoration:none} footer a:hover{text-decoration:underline}
+  .themebtn{position:fixed;top:14px;right:14px;width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:var(--panel);color:var(--ink);cursor:pointer;font-size:15px}
+  .k{color:var(--dim)}
+</style>
+</head>
+<body>
+<button class="themebtn" id="theme" title="Toggle theme">◐</button>
+<div class="wrap">
+  <header>
+    <div class="glyph">🔑</div>
+    <h1>The <em>Wallet</em></h1>
+    <p class="sub">An agent that doesn't <em>have</em> a budget — it <b>is</b> one. An Ed25519 identity that carries a <b>signed action-ceiling it cannot cross</b>, refuses forged or over-budget actions, and forks into a lineage tree. The token-leak, made <b>impossible by construction</b>.</p>
+  </header>
+
+  <div class="banner" id="crypto">checking for WebCrypto Ed25519…</div>
+
+  <section>
+    <div class="eyebrow">§1 · mint — capabilities + a budget</div>
+    <label>capabilities this wallet may perform</label>
+    <div class="caps" id="caps"></div>
+    <div class="row">
+      <label for="budget">budget (max total cost)</label>
+      <input type="number" id="budget" value="100" min="1" max="1000000">
+      <button class="gold" id="mint">Mint wallet</button>
+    </div>
+    <div class="id" id="walletid">no wallet yet</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§2 · act — the ceiling cannot be crossed</div>
+    <div class="row">
+      <select id="acttype" style="font-family:var(--mono);font-size:14px;padding:9px 11px;border-radius:9px;border:1px solid var(--border);background:var(--panel2);color:var(--ink)"></select>
+      <label for="cost">cost</label>
+      <input type="number" id="cost" value="20" min="0" max="1000000">
+      <button id="authorize" disabled>Authorize action</button>
+      <button id="drain" disabled title="fire 1-cost actions until the ceiling refuses">▶ spend to the ceiling</button>
+    </div>
+    <div class="bar"><i id="barfill" style="width:0%"></i><span id="barlabel">0 / 0</span></div>
+    <div class="log" id="log"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§3 · forge — a tampered token is rejected (real signature check)</div>
+    <p style="color:var(--dim);font-size:13.5px">Take the last signed authorization, flip one character of its signature, and re-verify. A real Ed25519 verify catches it.</p>
+    <div class="row">
+      <button id="verifylast" disabled>Verify the last token</button>
+      <button id="forge" disabled>Flip a bit → verify (should reject)</button>
+    </div>
+    <div class="id" id="forgeout">—</div>
+  </section>
+
+  <section>
+    <div class="eyebrow">§4 · lineage — the fork IS the wallet · credit flows upstream, bounded</div>
+    <div class="row">
+      <button id="fork" disabled>Fork a child (attenuated)</button>
+      <button id="realize" disabled>Realize value 100 at the deepest child</button>
+    </div>
+    <div class="tree" id="tree">mint a wallet, then fork.</div>
+  </section>
+
+  <footer>
+    the LINEAGE organ of the Seal (§27) · Ed25519 identity + capability + budget + fork-lineage · the same kernel a <a href="https://github.com/sjgant80-hub/the-wallet">gate proves 23/23</a><br>
+    a capability sandbox for cooperative code; the signed token is the boundary against untrusted code · no server, no custody — the secret key never leaves this page<br>
+    <a href="https://sjgant80-hub.github.io/the-throat/">the throat</a> · <a href="https://sjgant80-hub.github.io/one-ladder/">one-ladder</a> · <a href="https://github.com/sjgant80-hub/the-wallet">source</a>
+  </footer>
+</div>
+
+<script type="module">
+import { genesis, authorize, verifyToken, fork, verifyLineage, lineageSplit, canDo } from './wallet.mjs';
+
+// ── crypto adapter: real WebCrypto Ed25519 if the browser supports it, else a clearly-labelled demo signer ──
+async function makeCrypto(){
+  const subtle = (globalThis.crypto && crypto.subtle) || null;
+  if (subtle){
+    try {
+      const kp = await subtle.generateKey({ name:'Ed25519' }, true, ['sign','verify']);
+      await subtle.exportKey('jwk', kp.publicKey);         // probe: throws if unsupported
+      return { real:true,
+        async generate(){ const k=await subtle.generateKey({name:'Ed25519'},true,['sign','verify']); const pub=await subtle.exportKey('jwk',k.publicKey); const prv=await subtle.exportKey('jwk',k.privateKey); return { pk:pub.x, sk:prv.d+'.'+prv.x }; },
+        async sign(msg,sk){ const [d,x]=sk.split('.'); const key=await subtle.importKey('jwk',{kty:'OKP',crv:'Ed25519',x,d},{name:'Ed25519'},false,['sign']); const sig=await subtle.sign({name:'Ed25519'},key,new TextEncoder().encode(msg)); return [...new Uint8Array(sig)].map(b=>b.toString(16).padStart(2,'0')).join(''); },
+        async verify(msg,sigHex,pk){ try{ const key=await subtle.importKey('jwk',{kty:'OKP',crv:'Ed25519',x:pk},{name:'Ed25519'},false,['verify']); const sig=new Uint8Array(sigHex.match(/../g).map(h=>parseInt(h,16))); return await subtle.verify({name:'Ed25519'},key,sig,new TextEncoder().encode(msg)); }catch{ return false; } } };
+    } catch {}
+  }
+  // fallback demo signer (NOT cryptographic — the budget/capability/lineage LOGIC is still real + gated)
+  const h = s => { let a=0x811c9dc5>>>0; for(let i=0;i<s.length;i++){ a=Math.imul(a^s.charCodeAt(i),0x01000193)>>>0; } return (a>>>0).toString(16).padStart(8,'0'); };
+  let n=0;
+  return { real:false,
+    async generate(){ const id=h('k'+(n++)+performance.now()); return { pk:id, sk:'demo:'+id }; },
+    async sign(msg,sk){ return h(msg+'|'+sk); },
+    async verify(msg,sigHex,pk){ return sigHex===h(msg+'|demo:'+pk); } };
+}
+
+const CAPS = ['spend-tokens','http-get','send-email','write-file'];
+let C, wallet=null, sk=null, lastToken=null, lineage=[];   // lineage = [{wallet, sk, depth}]
+
+const el = s => document.querySelector(s);
+document.getElementById('caps').innerHTML = CAPS.map(c=>`<span class="cap${c==='spend-tokens'?' on':''}" data-c="${c}">${c}</span>`).join('');
+document.getElementById('caps').onclick = e => { const c=e.target.closest('.cap'); if(c) c.classList.toggle('on'); };
+document.getElementById('acttype').innerHTML = CAPS.map(c=>`<option>${c}</option>`).join('');
+
+function fmtId(id){ return id.slice(0,10)+'…'+id.slice(-6); }
+function refreshBar(){
+  const t=wallet.budget.total, s=wallet.budget.spent, pct=t?Math.min(100,Math.round(s/t*100)):0;
+  el('#barfill').style.width=pct+'%'; el('#barlabel').textContent=`${s} / ${t} spent`;
+}
+function logLine(text, ok){ const d=document.createElement('div'); d.className=ok?'ok':'no'; d.textContent=(ok?'✓ ':'✗ ')+text; el('#log').prepend(d); }
+
+(async () => {
+  C = await makeCrypto();
+  const b = document.getElementById('crypto');
+  b.className = 'banner ' + (C.real ? 'real' : 'demo');
+  b.textContent = C.real ? '✓ real Ed25519 via WebCrypto — signatures are cryptographic' : '⚠ your browser lacks WebCrypto Ed25519 — using a demo signer (the budget/capability/lineage logic is still real & gated; signatures are not)';
+})();
+
+document.getElementById('mint').onclick = async () => {
+  const caps=[...document.querySelectorAll('.cap.on')].map(c=>c.dataset.c);
+  const budget=Math.max(1,+el('#budget').value||100);
+  const g = await genesis(C, { caps, budget });
+  wallet=g.wallet; sk=g.sk; lastToken=null; lineage=[{wallet,sk,depth:0}];
+  el('#walletid').innerHTML = `wallet id (pubkey): <b>${fmtId(wallet.id)}</b> · caps [${caps.join(', ')||'none'}] · budget ${budget}`;
+  el('#log').innerHTML=''; el('#forgeout').textContent='—'; refreshBar();
+  ['authorize','drain','verifylast','fork'].forEach(i=>el('#'+i).disabled=false);
+  el('#realize').disabled=true; el('#tree').textContent='one wallet (depth 0). fork to grow the lineage.';
+  renderTree();
+};
+
+async function doAuthorize(type, cost){
+  const res = await authorize(C, wallet, sk, { type, cost });
+  if(res.ok){ wallet=res.wallet; lastToken=res.token; lineage[0].wallet=wallet; refreshBar(); logLine(`${type} cost ${cost} authorized · signed · spent ${wallet.budget.spent}/${wallet.budget.total}`, true); }
+  else logLine(`${type} cost ${cost} REFUSED — ${res.why}`, false);
+  el('#verifylast').disabled = !lastToken; el('#forge').disabled = !lastToken;
+  return res.ok;
+}
+document.getElementById('authorize').onclick = () => doAuthorize(el('#acttype').value, Math.max(0,+el('#cost').value||0));
+document.getElementById('drain').onclick = async () => {
+  const type = wallet.caps[0] || 'spend-tokens';
+  let ran=0;
+  while (canDo(wallet,{type,cost:1}).ok && ran<10000){ await doAuthorize(type,1); ran++; }
+  await doAuthorize(type,1);   // the one that gets refused — shows the ceiling
+};
+
+document.getElementById('verifylast').onclick = async () => {
+  const v = await verifyToken(C, lastToken);
+  el('#forgeout').innerHTML = v.ok ? '<span style="color:var(--green)">✓ token verifies — signature valid, spend within budget</span>' : `<span style="color:var(--red)">✗ ${v.why}</span>`;
+};
+document.getElementById('forge').onclick = async () => {
+  const forged = { ...lastToken, sig: (lastToken.sig[0]==='0'?'1':'0') + lastToken.sig.slice(1) };
+  const v = await verifyToken(C, forged);
+  el('#forgeout').innerHTML = v.ok ? '<span style="color:var(--red)">✗ forged token PASSED (demo signer — not cryptographic)</span>' : '<span style="color:var(--green)">✓ forged token REJECTED — the flipped signature does not verify</span>';
+};
+
+document.getElementById('fork').onclick = async () => {
+  const parent = lineage[lineage.length-1];
+  const remaining = parent.wallet.budget.total - parent.wallet.budget.spent;
+  const childBudget = Math.max(1, Math.floor(remaining/2));
+  const f = await fork(C, parent.wallet, parent.sk, { caps: parent.wallet.caps, budget: childBudget });
+  const okLin = (await verifyLineage(C, f.birthCert)).ok;
+  lineage.push({ wallet:f.child, sk:f.sk, depth:f.child.lineage.depth, birthOk:okLin });
+  el('#realize').disabled=false; renderTree();
+};
+document.getElementById('realize').onclick = () => {
+  const depth = lineage.length-1;
+  const r = lineageSplit(depth, 100);
+  renderTree(r);
+};
+function renderTree(split){
+  if(!lineage.length){ el('#tree').textContent='mint a wallet, then fork.'; return; }
+  el('#tree').innerHTML = lineage.map((n,i)=>{
+    const pad='&nbsp;'.repeat(i*3) + (i?'└─ ':'');
+    const cr = split ? ` <span class="credit">← +${split.split[split.split.length-1-i]?.share.toFixed(1)||'0'} credit</span>` : '';
+    const b = n.birthOk===false ? ' <span style="color:var(--red)">(bad birth-cert)</span>' : (i? ' <span style="color:var(--green)">✓ birth verified</span>':'');
+    return `${pad}<span class="n">${fmtId(n.wallet.id)}</span> <span class="c">depth ${n.depth} · budget ${n.wallet.budget.total}</span>${b}${cr}`;
+  }).join('<br>') + (split ? `<br><br><span class="c">value 100 realized at depth ${split.split.length-1} · upstream credit total ${split.upstreamTotal.toFixed(1)} ≤ bound ${split.upstreamBound.toFixed(1)} (bounded — never runs away)</span>` : '');
+}
+
+const root=document.documentElement;
+document.getElementById('theme').onclick=()=>{ const cur=root.getAttribute('data-theme')||(matchMedia('(prefers-color-scheme:dark)').matches?'dark':'light'); root.setAttribute('data-theme',cur==='dark'?'light':'dark'); };
+
+if('serviceWorker' in navigator) navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body>
+</html>
